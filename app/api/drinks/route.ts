@@ -3,7 +3,7 @@ import { addDrink, getAllDrinks, type Drink } from '@/lib/storage'
 
 export async function POST(request: NextRequest) {
   try {
-    const { type, amount } = await request.json()
+    const { type, amount, userId } = await request.json()
 
     if (!type || !amount) {
       return NextResponse.json(
@@ -19,11 +19,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const drink = addDrink({
+    const drink = await addDrink({
       type,
       amount,
       timestamp: new Date().toISOString(),
-    })
+    }, userId || 'default')
 
     return NextResponse.json({ success: true, drink }, { status: 200 })
   } catch (error: any) {
@@ -35,9 +35,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const drinks = getAllDrinks()
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get('userId') || undefined
+    const drinks = await getAllDrinks(userId)
     return NextResponse.json({ drinks }, { status: 200 })
   } catch (error) {
     return NextResponse.json(

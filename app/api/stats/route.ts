@@ -1,9 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getAllDrinks } from '@/lib/storage'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const drinks = getAllDrinks()
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get('userId') || undefined
+    const drinks = await getAllDrinks(userId)
 
     const totalBeer = drinks
       .filter((d) => d.type === 'beer')

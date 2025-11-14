@@ -73,7 +73,9 @@ export default function CounterPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/stats')
+      const userId = sessionStorage.getItem('userId') || undefined
+      const url = userId ? `/api/stats?userId=${userId}` : '/api/stats'
+      const response = await fetch(url)
       const data = await response.json()
       setStats(data)
     } catch (error) {
@@ -83,7 +85,9 @@ export default function CounterPage() {
 
   const fetchChartData = async () => {
     try {
-      const response = await fetch('/api/chart-data')
+      const userId = sessionStorage.getItem('userId') || undefined
+      const url = userId ? `/api/chart-data?userId=${userId}` : '/api/chart-data'
+      const response = await fetch(url)
       const data = await response.json()
       setChartData(data.hourly || [])
       setOneHourChartData(data.oneHour || [])
@@ -97,6 +101,7 @@ export default function CounterPage() {
     const buttonId = `${type}-${amount}`
     setLoadingButton(buttonId)
     setSuccessMessage(null)
+    const userId = sessionStorage.getItem('userId') || undefined
 
     try {
       const response = await fetch('/api/drinks', {
@@ -104,7 +109,7 @@ export default function CounterPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ type, amount }),
+        body: JSON.stringify({ type, amount, userId }),
       })
 
       if (response.ok) {
@@ -151,9 +156,14 @@ export default function CounterPage() {
 
   const handleReset = async () => {
     setResetting(true)
+    const userId = sessionStorage.getItem('userId') || undefined
     try {
       const response = await fetch('/api/reset', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
       })
 
       if (response.ok) {

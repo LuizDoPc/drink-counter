@@ -34,9 +34,12 @@ export default function LoginPage() {
 
       if (data.success) {
         sessionStorage.setItem('isLoggedIn', 'true')
+        if (data.userId) {
+          sessionStorage.setItem('userId', data.userId)
+        }
         router.push('/counter')
       } else {
-        setError('Invalid password')
+        setError(data.error || 'Invalid password')
       }
     } catch (err) {
       setError('Login failed. Please try again.')
