@@ -37,7 +37,10 @@ async function readDrinksBlob(): Promise<Drink[]> {
   }
 
   try {
-    const blobs = await list({ prefix: DRINKS_BLOB_KEY })
+    const blobs = await list({ 
+      prefix: DRINKS_BLOB_KEY,
+      token: process.env.BLOB_READ_WRITE_TOKEN 
+    })
     if (blobs.blobs.length === 0) {
       return []
     }
@@ -65,6 +68,7 @@ async function writeDrinksBlob(drinks: Drink[]): Promise<void> {
     await put(DRINKS_BLOB_KEY, jsonData, {
       access: 'public',
       contentType: 'application/json',
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     })
   } catch (error) {
     console.error('Failed to write drinks to blob:', error)
@@ -78,7 +82,10 @@ async function readUsersBlob(): Promise<User[]> {
   }
 
   try {
-    const blobs = await list({ prefix: USERS_BLOB_KEY })
+    const blobs = await list({ 
+      prefix: USERS_BLOB_KEY,
+      token: process.env.BLOB_READ_WRITE_TOKEN 
+    })
     if (blobs.blobs.length === 0) {
       return []
     }
@@ -106,6 +113,7 @@ async function writeUsersBlob(users: User[]): Promise<void> {
     await put(USERS_BLOB_KEY, jsonData, {
       access: 'public',
       contentType: 'application/json',
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     })
   } catch (error) {
     console.error('Failed to write users to blob:', error)
