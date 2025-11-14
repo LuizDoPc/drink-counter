@@ -35,6 +35,7 @@ export default function CounterPage() {
   const [activeTab, setActiveTab] = useState<'counter' | 'stats'>('counter')
   const [loadingButton, setLoadingButton] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [isError, setIsError] = useState(false)
   const [stats, setStats] = useState<Stats | null>(null)
   const [chartData, setChartData] = useState<Array<{ time: string; beer: number; cachaca: number }>>([])
   const [oneHourChartData, setOneHourChartData] = useState<Array<{ time: string; beer: number; cachaca: number }>>([])
@@ -107,17 +108,35 @@ export default function CounterPage() {
       })
 
       if (response.ok) {
+        const data = await response.json()
         const drinkType = type === 'beer' ? '🍺 Beer' : '🥃 Cachaça'
         const drinkAmount = formatVolume(amount)
+        setIsError(false)
         setSuccessMessage(`${drinkType} ${drinkAmount} added! 🎉`)
         await fetchStats()
         await fetchChartData()
-        setTimeout(() => setSuccessMessage(null), 3000)
+        setTimeout(() => {
+          setSuccessMessage(null)
+          setIsError(false)
+        }, 3000)
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Failed to add drink:', response.status, errorData)
+        setIsError(true)
+        setSuccessMessage(`❌ ${errorData.error || 'Server error'}`)
+        setTimeout(() => {
+          setSuccessMessage(null)
+          setIsError(false)
+        }, 5000)
       }
     } catch (error) {
       console.error('Failed to add drink:', error)
-      setSuccessMessage('Failed to add drink. Please try again.')
-      setTimeout(() => setSuccessMessage(null), 3000)
+      setIsError(true)
+      setSuccessMessage('❌ Network error or server unavailable')
+      setTimeout(() => {
+        setSuccessMessage(null)
+        setIsError(false)
+      }, 5000)
     } finally {
       setTimeout(() => setLoadingButton(null), 500)
     }
@@ -139,18 +158,31 @@ export default function CounterPage() {
 
       if (response.ok) {
         setShowResetModal(false)
+        setIsError(false)
         await fetchStats()
         await fetchChartData()
         setSuccessMessage('All data has been reset! 🔄')
-        setTimeout(() => setSuccessMessage(null), 3000)
+        setTimeout(() => {
+          setSuccessMessage(null)
+          setIsError(false)
+        }, 3000)
       } else {
-        setSuccessMessage('Failed to reset data. Please try again.')
-        setTimeout(() => setSuccessMessage(null), 3000)
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        setIsError(true)
+        setSuccessMessage(`❌ ${errorData.error || 'Failed to reset data'}`)
+        setTimeout(() => {
+          setSuccessMessage(null)
+          setIsError(false)
+        }, 5000)
       }
     } catch (error) {
       console.error('Failed to reset:', error)
-      setSuccessMessage('Failed to reset data. Please try again.')
-      setTimeout(() => setSuccessMessage(null), 3000)
+      setIsError(true)
+      setSuccessMessage('❌ Network error or server unavailable')
+      setTimeout(() => {
+        setSuccessMessage(null)
+        setIsError(false)
+      }, 5000)
     } finally {
       setResetting(false)
     }
@@ -590,7 +622,11 @@ export default function CounterPage() {
     </div>
       {successMessage && (
         <div 
-          className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white font-semibold px-6 py-4 rounded-xl shadow-2xl z-[10000] animate-slide-down flex items-center gap-2 min-w-[280px] max-w-[90vw]"
+          className={`fixed top-4 left-1/2 transform -translate-x-1/2 font-semibold px-6 py-4 rounded-xl shadow-2xl z-[10000] animate-slide-down flex items-center gap-2 min-w-[280px] max-w-[90vw] ${
+            isError 
+              ? 'bg-red-500 text-white' 
+              : 'bg-green-500 text-white'
+          }`}
           style={{ 
             position: 'fixed',
             top: '1rem',
@@ -599,7 +635,7 @@ export default function CounterPage() {
             animation: 'slideDown 0.3s ease-out'
           }}
         >
-          <span className="text-2xl">🎉</span>
+          {!isError && <span className="text-2xl">🎉</span>}
           <p className="text-lg">{successMessage}</p>
         </div>
       )}

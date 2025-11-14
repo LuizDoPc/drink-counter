@@ -26,9 +26,10 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ success: true, drink }, { status: 200 })
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Error adding drink:', error)
     return NextResponse.json(
-      { error: 'Failed to add drink' },
+      { error: error?.message || 'Failed to add drink. Storage may be unavailable.' },
       { status: 500 }
     )
   }

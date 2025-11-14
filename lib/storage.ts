@@ -1,7 +1,11 @@
 import fs from 'fs'
 import path from 'path'
+import os from 'os'
 
-const DATA_DIR = path.join(process.cwd(), 'data')
+const isVercel = process.env.VERCEL === '1'
+const DATA_DIR = isVercel
+  ? path.join(os.tmpdir(), 'beer-counter-data')
+  : path.join(process.cwd(), 'data')
 const DRINKS_FILE = path.join(DATA_DIR, 'drinks.json')
 
 export interface Drink {
@@ -31,8 +35,13 @@ function readDrinks(): Drink[] {
 }
 
 function writeDrinks(drinks: Drink[]) {
-  ensureDataDir()
-  fs.writeFileSync(DRINKS_FILE, JSON.stringify(drinks, null, 2))
+  try {
+    ensureDataDir()
+    fs.writeFileSync(DRINKS_FILE, JSON.stringify(drinks, null, 2))
+  } catch (error) {
+    console.error('Failed to write drinks file:', error)
+    throw new Error('Failed to save data. File system may be read-only.')
+  }
 }
 
 export function addDrink(drink: Omit<Drink, 'id'>): Drink {
