@@ -37,7 +37,9 @@ export default function CounterPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [stats, setStats] = useState<Stats | null>(null)
   const [chartData, setChartData] = useState<Array<{ time: string; beer: number; cachaca: number }>>([])
+  const [oneHourChartData, setOneHourChartData] = useState<Array<{ time: string; beer: number; cachaca: number }>>([])
   const [weeklyChartData, setWeeklyChartData] = useState<Array<{ date: string; beer: number; cachaca: number }>>([])
+  const [chartTimeRange, setChartTimeRange] = useState<'1h' | '24h'>('1h')
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetting, setResetting] = useState(false)
   const router = useRouter()
@@ -57,6 +59,17 @@ export default function CounterPage() {
     return () => clearInterval(interval)
   }, [router])
 
+  useEffect(() => {
+    if (showResetModal) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [showResetModal])
+
   const fetchStats = async () => {
     try {
       const response = await fetch('/api/stats')
@@ -72,6 +85,7 @@ export default function CounterPage() {
       const response = await fetch('/api/chart-data')
       const data = await response.json()
       setChartData(data.hourly || [])
+      setOneHourChartData(data.oneHour || [])
       setWeeklyChartData(data.daily || [])
     } catch (error) {
       console.error('Failed to fetch chart data:', error)
@@ -143,6 +157,7 @@ export default function CounterPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen pb-20">
       <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-4 shadow-lg">
         <div className="flex items-center justify-between">
@@ -184,13 +199,6 @@ export default function CounterPage() {
 
       {activeTab === 'counter' && (
         <div className="p-4 space-y-6">
-          {successMessage && (
-            <div className="bg-green-50 border-2 border-green-400 rounded-xl p-4 text-center animate-pulse">
-              <p className="text-green-800 font-semibold text-lg">
-                {successMessage}
-              </p>
-            </div>
-          )}
 
           {stats && (
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg p-4 border-2 border-blue-200">
@@ -217,18 +225,46 @@ export default function CounterPage() {
                   </div>
                 </div>
               </div>
-              {chartData.length > 0 && (
+              {(chartData.length > 0 || oneHourChartData.length > 0) && (
                 <div className="mt-4">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2 text-center">
-                    📈 Consumption Over Time (Last 24h)
-                  </h4>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-700">
+                      📈 Consumption Over Time
+                    </h4>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setChartTimeRange('1h')}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                          chartTimeRange === '1h'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        1 Hour
+                      </button>
+                      <button
+                        onClick={() => setChartTimeRange('24h')}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                          chartTimeRange === '24h'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        24 Hours
+                      </button>
+                    </div>
+                  </div>
                   <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={chartData}>
+                    <LineChart data={chartTimeRange === '1h' ? oneHourChartData : chartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
                       <XAxis 
                         dataKey="time" 
                         stroke="#64748b"
                         style={{ fontSize: '12px' }}
+                        interval={chartTimeRange === '24h' ? 'preserveStartEnd' : 0}
+                        angle={chartTimeRange === '24h' ? -45 : 0}
+                        textAnchor={chartTimeRange === '24h' ? 'end' : 'middle'}
+                        height={chartTimeRange === '24h' ? 60 : 30}
                       />
                       <YAxis 
                         stroke="#64748b"
@@ -551,8 +587,27 @@ export default function CounterPage() {
         </div>
       )}
 
+    </div>
+      {successMessage && (
+        <div 
+          className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white font-semibold px-6 py-4 rounded-xl shadow-2xl z-[10000] animate-slide-down flex items-center gap-2 min-w-[280px] max-w-[90vw]"
+          style={{ 
+            position: 'fixed',
+            top: '1rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            animation: 'slideDown 0.3s ease-out'
+          }}
+        >
+          <span className="text-2xl">🎉</span>
+          <p className="text-lg">{successMessage}</p>
+        </div>
+      )}
       {showResetModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div 
+          className="fixed top-0 left-0 w-screen h-screen bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+        >
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
             <div className="text-center mb-6">
               <div className="text-5xl mb-4">⚠️</div>
@@ -582,7 +637,7 @@ export default function CounterPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 
