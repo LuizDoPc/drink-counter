@@ -19,15 +19,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    console.error('Adding drink:', { type, amount, userId: userId || 'default' })
     const drink = await addDrink({
       type,
       amount,
       timestamp: new Date().toISOString(),
     }, userId || 'default')
+    console.error('Drink added successfully:', drink.id)
 
     return NextResponse.json({ success: true, drink }, { status: 200 })
   } catch (error: any) {
     console.error('Error adding drink:', error)
+    console.error('Error stack:', error?.stack)
     return NextResponse.json(
       { error: error?.message || 'Failed to add drink. Storage may be unavailable.' },
       { status: 500 }

@@ -1,6 +1,4 @@
 import { put, list } from '@vercel/blob'
-import fs from 'fs'
-import path from 'path'
 
 export interface Drink {
   id: string
@@ -21,123 +19,119 @@ const USERS_BLOB_KEY = 'users.json'
 
 const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN
 
-const DATA_DIR = path.join(process.cwd(), 'data')
-const DRINKS_FILE = path.join(DATA_DIR, 'drinks.json')
-const USERS_FILE = path.join(DATA_DIR, 'users.json')
-
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true })
-  }
-}
-
 async function readDrinksBlob(): Promise<Drink[]> {
   if (!hasBlob) {
+    console.error('Blob storage not configured, returning empty array')
     return []
   }
 
   try {
+    console.error('Reading drinks from blob storage...')
     const blobs = await list({ 
-      prefix: DRINKS_BLOB_KEY,
-      token: process.env.BLOB_READ_WRITE_TOKEN 
+      prefix: DRINKS_BLOB_KEY
     })
+    console.error('Found blobs:', blobs.blobs.length)
     if (blobs.blobs.length === 0) {
+      console.error('No drinks blob found, returning empty array')
       return []
     }
     
     const latestBlob = blobs.blobs[0]
+    console.error('Fetching drinks from:', latestBlob.url)
     const response = await fetch(latestBlob.url)
     if (!response.ok) {
+      console.error('Failed to fetch drinks blob:', response.status, response.statusText)
       return []
     }
     const data = await response.json()
-    return Array.isArray(data) ? data : []
-  } catch (error) {
+    const drinks = Array.isArray(data) ? data : []
+    console.error('Successfully read', drinks.length, 'drinks from blob')
+    return drinks
+  } catch (error: any) {
     console.error('Failed to read drinks from blob:', error)
+    console.error('Error details:', error?.message, error?.stack)
     return []
   }
 }
 
 async function writeDrinksBlob(drinks: Drink[]): Promise<void> {
   if (!hasBlob) {
-    throw new Error('Blob storage not configured')
+    throw new Error('Blob storage not configured. Please set BLOB_READ_WRITE_TOKEN environment variable.')
   }
 
   try {
     const jsonData = JSON.stringify(drinks, null, 2)
-    await put(DRINKS_BLOB_KEY, jsonData, {
+    const blob = new Blob([jsonData], { type: 'application/json' })
+    const result = await put(DRINKS_BLOB_KEY, blob, {
       access: 'public',
       contentType: 'application/json',
-      token: process.env.BLOB_READ_WRITE_TOKEN,
     })
-  } catch (error) {
+    console.error('Successfully wrote drinks to blob:', result.url)
+  } catch (error: any) {
     console.error('Failed to write drinks to blob:', error)
-    throw new Error('Failed to save data to blob storage.')
+    console.error('Error details:', error?.message, error?.stack)
+    throw new Error(`Failed to save data to blob storage: ${error?.message || 'Unknown error'}`)
   }
 }
 
 async function readUsersBlob(): Promise<User[]> {
   if (!hasBlob) {
+    console.error('Blob storage not configured, returning empty array')
     return []
   }
 
   try {
+    console.error('Reading users from blob storage...')
     const blobs = await list({ 
-      prefix: USERS_BLOB_KEY,
-      token: process.env.BLOB_READ_WRITE_TOKEN 
+      prefix: USERS_BLOB_KEY
     })
+    console.error('Found user blobs:', blobs.blobs.length)
     if (blobs.blobs.length === 0) {
+      console.error('No users blob found, returning empty array')
       return []
     }
     
     const latestBlob = blobs.blobs[0]
+    console.error('Fetching users from:', latestBlob.url)
     const response = await fetch(latestBlob.url)
     if (!response.ok) {
+      console.error('Failed to fetch users blob:', response.status, response.statusText)
       return []
     }
     const data = await response.json()
-    return Array.isArray(data) ? data : []
-  } catch (error) {
+    const users = Array.isArray(data) ? data : []
+    console.error('Successfully read', users.length, 'users from blob')
+    return users
+  } catch (error: any) {
     console.error('Failed to read users from blob:', error)
+    console.error('Error details:', error?.message, error?.stack)
     return []
   }
 }
 
 async function writeUsersBlob(users: User[]): Promise<void> {
   if (!hasBlob) {
-    throw new Error('Blob storage not configured')
+    throw new Error('Blob storage not configured. Please set BLOB_READ_WRITE_TOKEN environment variable.')
   }
 
   try {
     const jsonData = JSON.stringify(users, null, 2)
-    await put(USERS_BLOB_KEY, jsonData, {
+    const blob = new Blob([jsonData], { type: 'application/json' })
+    const result = await put(USERS_BLOB_KEY, blob, {
       access: 'public',
       contentType: 'application/json',
-      token: process.env.BLOB_READ_WRITE_TOKEN,
     })
-  } catch (error) {
+    console.error('Successfully wrote users to blob:', result.url)
+  } catch (error: any) {
     console.error('Failed to write users to blob:', error)
-    throw new Error('Failed to save users to blob storage.')
+    console.error('Error details:', error?.message, error?.stack)
+    throw new Error(`Failed to save users to blob storage: ${error?.message || 'Unknown error'}`)
   }
 }
 
 async function readDrinks(userId?: string): Promise<Drink[]> {
-  let allDrinks: Drink[] = []
-
-  if (hasBlob) {
-    allDrinks = await readDrinksBlob()
-  } else {
-    ensureDataDir()
-    if (fs.existsSync(DRINKS_FILE)) {
-      try {
-        const data = fs.readFileSync(DRINKS_FILE, 'utf-8')
-        allDrinks = JSON.parse(data) as Drink[]
-      } catch (error) {
-        console.error('Failed to read drinks from file:', error)
-      }
-    }
-  }
-
+  const allDrinks = await readDrinksBlob()
+  
   if (userId) {
     return allDrinks.filter(drink => drink.userId === userId)
   }
@@ -145,17 +139,7 @@ async function readDrinks(userId?: string): Promise<Drink[]> {
 }
 
 async function writeDrinks(drinks: Drink[]): Promise<void> {
-  if (hasBlob) {
-    await writeDrinksBlob(drinks)
-  } else {
-    try {
-      ensureDataDir()
-      fs.writeFileSync(DRINKS_FILE, JSON.stringify(drinks, null, 2))
-    } catch (error) {
-      console.error('Failed to write drinks to file:', error)
-      throw new Error('Failed to save data. File system may be read-only.')
-    }
-  }
+  await writeDrinksBlob(drinks)
 }
 
 export async function addDrink(drink: Omit<Drink, 'id'>, userId?: string): Promise<Drink> {
@@ -193,22 +177,7 @@ export async function clearAllDrinks(userId?: string): Promise<void> {
 }
 
 export async function getUserByPassword(password: string): Promise<User | null> {
-  let users: User[] = []
-
-  if (hasBlob) {
-    users = await readUsersBlob()
-  } else {
-    ensureDataDir()
-    if (fs.existsSync(USERS_FILE)) {
-      try {
-        const data = fs.readFileSync(USERS_FILE, 'utf-8')
-        users = JSON.parse(data) as User[]
-      } catch (error) {
-        console.error('Failed to read users from file:', error)
-      }
-    }
-  }
-
+  const users = await readUsersBlob()
   return users.find(user => user.password === password) || null
 }
 
@@ -219,43 +188,12 @@ export async function createUser(password: string): Promise<User> {
     createdAt: new Date().toISOString()
   }
 
-  let users: User[] = []
-
-  if (hasBlob) {
-    users = await readUsersBlob()
-    users.push(newUser)
-    await writeUsersBlob(users)
-  } else {
-    try {
-      ensureDataDir()
-      users = fs.existsSync(USERS_FILE)
-        ? JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8')) as User[]
-        : []
-      users.push(newUser)
-      fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2))
-    } catch (error) {
-      console.error('Failed to create user in file:', error)
-      throw new Error('Failed to create user')
-    }
-  }
-
+  const users = await readUsersBlob()
+  users.push(newUser)
+  await writeUsersBlob(users)
   return newUser
 }
 
 export async function getAllUsers(): Promise<User[]> {
-  if (hasBlob) {
-    return await readUsersBlob()
-  }
-
-  ensureDataDir()
-  if (!fs.existsSync(USERS_FILE)) {
-    return []
-  }
-  try {
-    const data = fs.readFileSync(USERS_FILE, 'utf-8')
-    return JSON.parse(data) as User[]
-  } catch (error) {
-    console.error('Failed to get users from file:', error)
-    return []
-  }
+  return await readUsersBlob()
 }
