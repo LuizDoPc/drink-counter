@@ -39,10 +39,13 @@ export default function CounterPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [chartData, setChartData] = useState<Array<{ time: string; beer: number; cachaca: number }>>([])
   const [oneHourChartData, setOneHourChartData] = useState<Array<{ time: string; beer: number; cachaca: number }>>([])
+  const [fourHourChartData, setFourHourChartData] = useState<Array<{ time: string; beer: number; cachaca: number }>>([])
+  const [eightHourChartData, setEightHourChartData] = useState<Array<{ time: string; beer: number; cachaca: number }>>([])
   const [weeklyChartData, setWeeklyChartData] = useState<Array<{ date: string; beer: number; cachaca: number }>>([])
-  const [chartTimeRange, setChartTimeRange] = useState<'1h' | '24h'>('1h')
+  const [chartTimeRange, setChartTimeRange] = useState<'1h' | '4h' | '8h' | '24h'>('1h')
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [username, setUsername] = useState<string>('')
   const router = useRouter()
 
   useEffect(() => {
@@ -50,6 +53,10 @@ export default function CounterPage() {
     if (isLoggedIn !== 'true') {
       router.push('/')
       return
+    }
+    const storedUsername = sessionStorage.getItem('username')
+    if (storedUsername) {
+      setUsername(storedUsername)
     }
     fetchStats()
     fetchChartData()
@@ -91,6 +98,8 @@ export default function CounterPage() {
       const data = await response.json()
       setChartData(data.hourly || [])
       setOneHourChartData(data.oneHour || [])
+      setFourHourChartData(data.fourHour || [])
+      setEightHourChartData(data.eightHour || [])
       setWeeklyChartData(data.daily || [])
     } catch (error) {
       console.error('Failed to fetch chart data:', error)
@@ -203,10 +212,19 @@ export default function CounterPage() {
     <div className="min-h-screen pb-20">
       <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-4 shadow-lg">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">🍺 Beer Counter</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">🍺 Beer Counter</h1>
+            {username && (
+              <span className="text-sm bg-white/20 px-3 py-1 rounded-full font-medium">
+                👤 {username}
+              </span>
+            )}
+          </div>
           <button
             onClick={() => {
               sessionStorage.removeItem('isLoggedIn')
+              sessionStorage.removeItem('userId')
+              sessionStorage.removeItem('username')
               router.push('/')
             }}
             className="text-white hover:text-gray-200 text-sm"
@@ -267,37 +285,62 @@ export default function CounterPage() {
                   </div>
                 </div>
               </div>
-              {(chartData.length > 0 || oneHourChartData.length > 0) && (
+              {(chartData.length > 0 || oneHourChartData.length > 0 || fourHourChartData.length > 0 || eightHourChartData.length > 0) && (
                 <div className="mt-4">
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                     <h4 className="text-sm font-semibold text-gray-700">
                       📈 Consumption Over Time
                     </h4>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 flex-wrap">
                       <button
                         onClick={() => setChartTimeRange('1h')}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                        className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
                           chartTimeRange === '1h'
                             ? 'bg-blue-500 text-white'
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         }`}
                       >
-                        1 Hour
+                        1h
+                      </button>
+                      <button
+                        onClick={() => setChartTimeRange('4h')}
+                        className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                          chartTimeRange === '4h'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        4h
+                      </button>
+                      <button
+                        onClick={() => setChartTimeRange('8h')}
+                        className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                          chartTimeRange === '8h'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        8h
                       </button>
                       <button
                         onClick={() => setChartTimeRange('24h')}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                        className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
                           chartTimeRange === '24h'
                             ? 'bg-blue-500 text-white'
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         }`}
                       >
-                        24 Hours
+                        24h
                       </button>
                     </div>
                   </div>
                   <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={chartTimeRange === '1h' ? oneHourChartData : chartData}>
+                    <LineChart data={
+                      chartTimeRange === '1h' ? oneHourChartData :
+                      chartTimeRange === '4h' ? fourHourChartData :
+                      chartTimeRange === '8h' ? eightHourChartData :
+                      chartData
+                    }>
                       <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
                       <XAxis 
                         dataKey="time" 

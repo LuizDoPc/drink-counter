@@ -4,9 +4,12 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isRegister, setIsRegister] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -16,9 +19,10 @@ export default function LoginPage() {
     }
   }, [router])
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setSuccess('')
     setLoading(true)
 
     try {
@@ -27,22 +31,31 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password, isRegister }),
       })
 
       const data = await response.json()
 
       if (data.success) {
-        sessionStorage.setItem('isLoggedIn', 'true')
-        if (data.userId) {
-          sessionStorage.setItem('userId', data.userId)
+        if (isRegister) {
+          setSuccess(data.message || 'Account created successfully! You can now login.')
+          setIsRegister(false)
+          setPassword('')
+        } else {
+          sessionStorage.setItem('isLoggedIn', 'true')
+          if (data.userId) {
+            sessionStorage.setItem('userId', data.userId)
+          }
+          if (data.username) {
+            sessionStorage.setItem('username', data.username)
+          }
+          router.push('/counter')
         }
-        router.push('/counter')
       } else {
-        setError(data.error || 'Invalid password')
+        setError(data.error || (isRegister ? 'Registration failed' : 'Invalid credentials'))
       }
     } catch (err) {
-      setError('Login failed. Please try again.')
+      setError(isRegister ? 'Registration failed. Please try again.' : 'Login failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -56,10 +69,23 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
             Beer Counter
           </h1>
-          <p className="text-gray-600">Enter password to continue</p>
+          <p className="text-gray-600">
+            {isRegister ? 'Create a new account' : 'Enter your credentials to continue'}
+          </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Username"
+              className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:outline-none text-lg"
+              required
+            />
+          </div>
+
           <div>
             <input
               type="password"
@@ -77,13 +103,38 @@ export default function LoginPage() {
             </div>
           )}
 
+          {success && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+              {success}
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
             className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold py-3 rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
           >
-            {loading ? 'Logging in...' : 'Login 🍻'}
+            {loading 
+              ? (isRegister ? 'Creating account...' : 'Logging in...') 
+              : (isRegister ? 'Register 🍻' : 'Login 🍻')
+            }
           </button>
+
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegister(!isRegister)
+                setError('')
+                setSuccess('')
+              }}
+              className="text-amber-600 hover:text-amber-700 text-sm font-medium"
+            >
+              {isRegister 
+                ? 'Already have an account? Login' 
+                : "Don't have an account? Register"}
+            </button>
+          </div>
         </form>
       </div>
     </div>

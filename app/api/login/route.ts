@@ -1,42 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUserByPassword, createUser, getAllUsers } from '@/lib/storage'
+import { getUserByUsernameAndPassword, createUser, getAllUsers } from '@/lib/storage'
 
 const FIXED_PASSWORD = process.env.APP_PASSWORD || 'beercounter2024'
 
 export async function POST(request: NextRequest) {
   try {
-    const { password } = await request.json()
+    const { username, password, isRegister } = await request.json()
 
-    if (!password) {
+    if (!username || !password) {
       return NextResponse.json(
-        { success: false, error: 'Password is required' },
+        { success: false, error: 'Username and password are required' },
         { status: 400 }
       )
     }
 
     try {
-      let user = await getUserByPassword(password)
-      
-      if (!user) {
+      if (isRegister) {
         const users = await getAllUsers()
         if (users.length === 0 && password === FIXED_PASSWORD) {
-          user = await createUser(password)
-        } else {
-          return NextResponse.json(
-            { success: false, error: 'Invalid password' },
-            { status: 401 }
-          )
+          const user = await createUser(username, password)
+          return NextResponse.json({ success: true, userId: user.id, username: user.username, message: 'User created successfully' }, { status: 200 })
         }
-      }
+        
+        try {
+          const user = await createUser(username, password)
+          return NextResponse.json({ success: true, userId: user.id, username: user.username, message: 'User created successfully' }, { status: 200 })
+        } catch (error: any) {
+          if (error.message === 'Username already exists') {
+            return NextResponse.json(
+              { success: false, error: 'Username already exists' },
+              { status: 409 }
+            )
+          }
+          throw error
+        }
+      } else {
+        let user = await getUserByUsernameAndPassword(username, password)
+        
+        if (!user) {
+          const users = await getAllUsers()
+          if (users.length === 0 && password === FIXED_PASSWORD) {
+            user = await createUser(username, password)
+          } else {
+            return NextResponse.json(
+              { success: false, error: 'Invalid username or password' },
+              { status: 401 }
+            )
+          }
+        }
 
-      return NextResponse.json({ success: true, userId: user.id }, { status: 200 })
-    } catch (error: any) {
-      console.error('Login error:', error)
-      if (password === FIXED_PASSWORD) {
-        return NextResponse.json({ success: true, userId: 'default' }, { status: 200 })
+        return NextResponse.json({ success: true, userId: user.id, username: user.username }, { status: 200 })
       }
+    } catch (error: any) {
+      console.error('Login/Register error:', error)
       return NextResponse.json(
-        { success: false, error: 'Database error. Please try again.' },
+        { success: false, error: error.message || 'Database error. Please try again.' },
         { status: 500 }
       )
     }

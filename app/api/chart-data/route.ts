@@ -86,6 +86,86 @@ export async function GET(request: NextRequest) {
       return minA - minB
     })
 
+    const last4Hours = new Date(now.getTime() - 4 * 60 * 60 * 1000)
+    const last4HoursDrinks = drinks.filter(
+      (d) => new Date(d.timestamp) >= last4Hours
+    )
+
+    const fourHourData: { [key: string]: { beer: number; cachaca: number; time: string } } = {}
+    
+    last4HoursDrinks.forEach((drink) => {
+      const drinkDate = new Date(drink.timestamp)
+      const minutes = drinkDate.getMinutes()
+      const intervalMinutes = Math.floor(minutes / 15) * 15
+      const timeKey = `${String(drinkDate.getHours()).padStart(2, '0')}:${String(intervalMinutes).padStart(2, '0')}`
+      
+      if (!fourHourData[timeKey]) {
+        fourHourData[timeKey] = { beer: 0, cachaca: 0, time: timeKey }
+      }
+      
+      if (drink.type === 'beer') {
+        fourHourData[timeKey].beer += drink.amount
+      } else {
+        fourHourData[timeKey].cachaca += drink.amount
+      }
+    })
+
+    const fourHourChartData = Object.values(fourHourData).sort((a, b) => {
+      const [hourA, minA] = a.time.split(':').map(Number)
+      const [hourB, minB] = b.time.split(':').map(Number)
+      if (hourA !== hourB) return hourA - hourB
+      return minA - minB
+    })
+
+    const last8Hours = new Date(now.getTime() - 8 * 60 * 60 * 1000)
+    const last8HoursDrinks = drinks.filter(
+      (d) => new Date(d.timestamp) >= last8Hours
+    )
+
+    const eightHourIntervalData: { [key: number]: { beer: number; cachaca: number } } = {}
+    
+    last8HoursDrinks.forEach((drink) => {
+      const drinkDate = new Date(drink.timestamp)
+      const minutes = drinkDate.getMinutes()
+      const intervalMinutes = Math.floor(minutes / 30) * 30
+      const intervalDate = new Date(drinkDate)
+      intervalDate.setMinutes(intervalMinutes, 0, 0)
+      const intervalTimestamp = intervalDate.getTime()
+      
+      if (!eightHourIntervalData[intervalTimestamp]) {
+        eightHourIntervalData[intervalTimestamp] = { beer: 0, cachaca: 0 }
+      }
+      
+      if (drink.type === 'beer') {
+        eightHourIntervalData[intervalTimestamp].beer += drink.amount
+      } else {
+        eightHourIntervalData[intervalTimestamp].cachaca += drink.amount
+      }
+    })
+
+    const eightHourChartData: Array<{ beer: number; cachaca: number; time: string }> = []
+    const numIntervals8h = 16
+    const intervalMs8h = 30 * 60 * 1000
+    
+    for (let i = numIntervals8h - 1; i >= 0; i--) {
+      const intervalTime = new Date(now.getTime() - i * intervalMs8h)
+      const intervalTimestamp = new Date(intervalTime)
+      intervalTimestamp.setMinutes(Math.floor(intervalTime.getMinutes() / 30) * 30, 0, 0)
+      const timestamp = intervalTimestamp.getTime()
+      
+      if (timestamp >= last8Hours.getTime()) {
+        const hours = intervalTimestamp.getHours()
+        const mins = intervalTimestamp.getMinutes()
+        const timeKey = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
+        
+        eightHourChartData.push({
+          beer: eightHourIntervalData[timestamp]?.beer || 0,
+          cachaca: eightHourIntervalData[timestamp]?.cachaca || 0,
+          time: timeKey
+        })
+      }
+    }
+
     const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     const weekDrinks = drinks.filter(
       (d) => new Date(d.timestamp) >= last7Days
@@ -119,6 +199,8 @@ export async function GET(request: NextRequest) {
       {
         hourly: chartData,
         oneHour: oneHourChartData,
+        fourHour: fourHourChartData,
+        eightHour: eightHourChartData,
         daily: weeklyChartData,
       },
       { status: 200 }
