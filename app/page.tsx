@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 export default function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [verificationCode, setVerificationCode] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,12 +27,17 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/login', {
+      const endpoint = isRegister ? '/api/register' : '/api/login'
+      const body = isRegister 
+        ? { username, password, verificationCode }
+        : { username, password, isRegister }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password, isRegister }),
+        body: JSON.stringify(body),
       })
 
       const data = await response.json()
@@ -41,6 +47,7 @@ export default function LoginPage() {
           setSuccess(data.message || 'Account created successfully! You can now login.')
           setIsRegister(false)
           setPassword('')
+          setVerificationCode('')
         } else {
           sessionStorage.setItem('isLoggedIn', 'true')
           if (data.userId) {
@@ -97,6 +104,19 @@ export default function LoginPage() {
             />
           </div>
 
+          {isRegister && (
+            <div>
+              <input
+                type="text"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                placeholder="Verification Code"
+                className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:outline-none text-lg"
+                required
+              />
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               {error}
@@ -127,6 +147,7 @@ export default function LoginPage() {
                 setIsRegister(!isRegister)
                 setError('')
                 setSuccess('')
+                setVerificationCode('')
               }}
               className="text-amber-600 hover:text-amber-700 text-sm font-medium"
             >
